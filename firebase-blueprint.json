@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and basic health information.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "User's full name" },
+        "email": { "type": "string", "format": "email", "description": "User's email address" },
+        "age": { "type": "number", "description": "User's age" },
+        "height": { "type": "number", "description": "User's height in cm" },
+        "weight": { "type": "number", "description": "User's current weight in kg" },
+        "cycleRegularity": { "type": "string", "enum": ["regular", "irregular", "none"], "description": "Menstrual cycle regularity" },
+        "symptoms": { "type": "array", "items": { "type": "string" }, "description": "List of PCOD symptoms" },
+        "exercise": { "type": "string", "enum": ["none", "low", "moderate", "high"], "description": "Weekly exercise level" },
+        "diet": { "type": "string", "enum": ["low", "medium", "high"], "description": "Sugar intake level" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" }
+      },
+      "required": ["name", "email", "age", "height", "weight", "role"]
+    },
+    "HealthLog": {
+      "title": "HealthLog",
+      "description": "Daily or periodic health log entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Reference to the user" },
+        "date": { "type": "string", "format": "date-time", "description": "Log date" },
+        "weight": { "type": "number", "description": "Weight at the time of log" },
+        "symptoms": { "type": "array", "items": { "type": "string" }, "description": "Symptoms experienced" },
+        "cycleStatus": { "type": "string", "description": "Status of menstrual cycle" },
+        "dietScore": { "type": "number", "description": "Diet adherence score" },
+        "workoutScore": { "type": "number", "description": "Workout adherence score" }
+      },
+      "required": ["userId", "date"]
+    },
+    "HealthState": {
+      "title": "HealthState",
+      "description": "The current hormonal health state of the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Reference to the user" },
+        "bmi": { "type": "number", "description": "Body Mass Index" },
+        "insulinScore": { "type": "number", "description": "Insulin resistance score (0-10)" },
+        "cycleScore": { "type": "number", "description": "Cycle regularity score (0-10)" },
+        "stressScore": { "type": "number", "description": "Stress score (0-10)" },
+        "inflammationIndex": { "type": "number", "description": "Inflammation index (0-10)" },
+        "adherenceScore": { "type": "number", "description": "Overall adherence score (0-100)" },
+        "stabilityScore": { "type": "number", "description": "Hormonal stability score (0-100)" },
+        "riskLevel": { "type": "string", "enum": ["Low", "Medium", "High"], "description": "PCOD risk level" },
+        "lastUpdated": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["userId", "bmi", "stabilityScore", "riskLevel"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document"
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": "HealthLog",
+      "description": "Collection of health logs for a user"
+    },
+    "/users/{userId}/health/current": {
+      "schema": "HealthState",
+      "description": "Current health state for a user"
+    }
+  }
+}

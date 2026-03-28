@@ -1,0 +1,5 @@
+{
+  "name": "HormoFit",
+  "description": "AI-powered PCOD Lifestyle Coach and Digital Twin platform for hormonal health prediction and management.",
+  "requestFramePermissions": ["camera"]
+}

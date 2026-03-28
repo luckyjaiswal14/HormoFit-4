@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Document ID: userId (Firebase Auth UID)
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - email: string (required, email format)
+    //   - age: number (required, 0-120)
+    //   - height: number (required, 50-250)
+    //   - weight: number (required, 20-300)
+    //   - cycleRegularity: string (enum: regular, irregular, none)
+    //   - symptoms: list (strings, max 20 items)
+    //   - exercise: string (enum: none, low, moderate, high)
+    //   - diet: string (enum: low, medium, high)
+    //   - role: string (enum: user, admin)
+    //   - createdAt: string (optional)
+    //
+    // Collection: /users/{userId}/logs/{logId}
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, matches parent userId)
+    //   - date: timestamp (required)
+    //   - weight: number (required)
+    //   - symptoms: list (strings)
+    //   - cycleStatus: string
+    //   - dietScore: number
+    //   - workoutScore: number
+    //
+    // Collection: /users/{userId}/health/current
+    // Document ID: 'current'
+    // Fields:
+    //   - userId: string (required)
+    //   - bmi: number (required)
+    //   - insulinScore: number
+    //   - cycleScore: number
+    //   - stressScore: number
+    //   - inflammationIndex: number
+    //   - adherenceScore: number
+    //   - stabilityScore: number (required)
+    //   - riskLevel: string (enum: Low, Medium, High, required)
+    //   - lastUpdated: string (ISO 8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "work.luckyjaiswal@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly(['name', 'email', 'age', 'height', 'weight', 'cycleRegularity', 'symptoms', 'exercise', 'diet', 'role', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             isValidEmail(data.email) &&
+             data.age is number && data.age >= 0 && data.age <= 120 &&
+             data.height is number && data.height >= 50 && data.height <= 250 &&
+             data.weight is number && data.weight >= 20 && data.weight <= 300 &&
+             data.cycleRegularity in ['regular', 'irregular', 'none'] &&
+             data.symptoms is list && data.symptoms.size() <= 20 &&
+             data.exercise in ['none', 'low', 'moderate', 'high'] &&
+             data.diet in ['low', 'medium', 'high'] &&
+             data.role in ['user', 'admin'] &&
+             (!('createdAt' in data) || data.createdAt is string);
+    }
+
+    function isValidLog(data, userId) {
+      return data.keys().hasAll(['userId', 'date']) &&
+             data.userId == userId &&
+             data.date is timestamp &&
+             data.weight is number &&
+             data.symptoms is list &&
+             data.dietScore is number &&
+             data.workoutScore is number;
+    }
+
+    function isValidHealthState(data, userId) {
+      return data.keys().hasAll(['userId', 'bmi', 'stabilityScore', 'riskLevel']) &&
+             data.userId == userId &&
+             data.bmi is number &&
+             data.stabilityScore is number &&
+             data.riskLevel in ['Low', 'Medium', 'High'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isOwner(userId) && 
+                      isValidUser(request.resource.data) && 
+                      request.resource.data.role == 'user';
+                      
+      allow update: if (isOwner(userId) && 
+                       isValidUser(request.resource.data) && 
+                       request.resource.data.role == resource.data.role) || 
+                      isAdmin();
+
+      match /logs/{logId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidLog(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidLog(request.resource.data, userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /health/{healthId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && isValidHealthState(request.resource.data, userId);
+      }
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
